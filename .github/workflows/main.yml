@@ -12,7 +12,7 @@ jobs:
     
         - name: Install and run
           run: |
-            docker compose up --build
+            docker compose up -d --build
 
         - name: Upload screenshot
           uses: actions/upload-artifact@v4
