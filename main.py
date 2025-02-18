@@ -39,8 +39,7 @@ driver.save_screenshot("screenshot.png")
 elem = driver.find_element(By.NAME, "password")
 elem.clear()
 elem.send_keys("Pass@2023")
-elem.send_keys(Keys.RETURN
-               )
+elem.send_keys(Keys.RETURN)
 
 WebDriverWait(driver, 10).until(lambda d: d.title == "Dashboard")
 assert "Dashboard" == driver.title
