@@ -1,0 +1,21 @@
+services:
+  selenium:
+    image: selenium/standalone-firefox
+    shm_size: 2gb
+    ports:
+      - 4444:4444
+      - 7900:7900
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4444/wd/hub/status"]
+      interval: 5s
+      timeout: 10s
+      retries: 5
+
+  app:
+    build: .
+    depends_on:
+      selenium:
+        condition: service_healthy
+    volumes:
+      - .:/app
+    command: ['python', "main.py"]
