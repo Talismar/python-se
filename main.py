@@ -1,3 +1,4 @@
+import os
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.by import By
 from selenium.webdriver.remote.file_detector import LocalFileDetector
@@ -11,9 +12,12 @@ driver = webdriver.Remote(
 )
 driver.file_detector = LocalFileDetector()
 
+FRONT_URL = os.environ.get('FRONT_URL', 'https://tavos-dev.thalocan.com')
+print('FRONT_URL', FRONT_URL)
+
 try:
     # http://172.17.0.1:3000
-   driver.get("https://tavos-dev.thalocan.com/login")
+   driver.get(f"{FRONT_URL}/login")
    print(driver.title)
    # assert "Python" in driver.title
    elem = driver.find_element(By.NAME, "email")

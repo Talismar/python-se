@@ -39,8 +39,6 @@ jobs:
               - 7900:7900
         
         steps:
-        - uses: actions/checkout@v4
-
         - name: Wait for PostgreSQL and Redis to be ready
           run: |
             until pg_isready -h localhost -p 5432 -U testuser; do
@@ -57,13 +55,6 @@ jobs:
         - name: Create additional database (audit_trail)
           run: |
               PGPASSWORD=testpassword psql -h localhost -U testuser -d postgres -c "CREATE DATABASE audit_trail;"        
-        
-        - name: Obter IP privado da máquina
-          run: |
-           HOST_IP=$(hostname -I | awk '{print $1}')
-           echo "O IP privado do runner é: $HOST_IP"
-           echo "O IP privado do runner é 2 method: ${{ steps.get_ip.outputs.ip }}"
-           echo "All $(hostname -I)"
 
         - name: Aguardar o Selenium estar pronto
           run: |
@@ -73,17 +64,74 @@ jobs:
             done
             echo "Selenium está pronto!"
         
+        - name: Obter o IP privado
+          id: get_ip
+          run: |
+            IP_PRIVADO=$(hostname -I | awk '{print $1}')
+            echo "IP privado: $IP_PRIVADO"
+            echo "HOST_IP=$IP_PRIVADO" >> $GITHUB_ENV
+
+        - name: Checkout Frontend Code Repository
+          uses: actions/checkout@v4
+          with:
+            path: 'frontend'
+            repository: 'Thalocan-TRI/tavos-front'
+            token: ${{ secrets.SECRET }}
+
+        - name: Set up Node.js
+          uses: actions/setup-node@v3
+          with:
+            node-version: '18.x'
+
+        - name: Install Frontend Dependencies
+          run: |
+            cd frontend
+            npm install
+  
+        - name: Install Frontend Dependencies
+          env:
+            NEXT_PUBLIC_URL_API: https://back-tavos-dev.thalocan.com
+            NEXT_PUBLIC_WS_BASE_URL: wss://back-tavos-dev.thalocan.com
+            NEXT_IMAGES_DOMAINS: back-tavos-dev.thalocan.com
+            CSP_CONNECT_SRC_URLS: https://back-tavos-dev.thalocan.com wss://back-tavos-dev.thalocan.com
+          run: |
+            cd frontend
+            npm run dev &
+    
+        - name: Checkout Backend Code Repository
+          uses: actions/checkout@v4
+          with:
+            path: 'backend'
+            # ref: 'feature/setup-selenium-test'
+            # repository: 'Thalocan-TRI/tavos-back'
+            # token: ${{ secrets.SECRET }}
+
         - name: Set up Python
           uses: actions/setup-python@v4
           with:
             python-version: '3.10.12'
 
-        - name: Install dependencies
+        - name: Install Backend Dependencies
           run: |
+            cd backend
             python -m pip install --upgrade pip
             pip install -r requirements.txt
+  
+        # - name: Run tests
+        #   env:
+        #     DATABASE_URL: postgres://testuser:testpassword@localhost:5432/testdb
+        #     REDIS_URL: redis://localhost:6379/0
+        #     DOMAIN_BACK_URL: http://localhost:8000
+        #     FRONT_URL: http://localhost:3000
+        #     AUDIT_TRAIL_DATABASE_URL: postgres://testuser:testpassword@localhost:5432/audit_trail
+        #     SELENIUM_HEADLESS: "True"
+        #   run: |
+        #     cd backend
+        #     python manage.py test tests.e2e.test_system
 
         - name: Run tests
+          env:
+            FRONT_URL: http://$HOST_IP:3000
           run: |
             python main.py
 
@@ -91,8 +139,11 @@ jobs:
         #   run: |
         #     docker compose up --abort-on-container-exit
 
-        - name: Upload screenshot
-          uses: actions/upload-artifact@v4
-          with:
-            name: screenshot
-            path: screenshot.png
+        # - name: Upload screenshot
+        #   uses: actions/upload-artifact@v4
+        #   with:
+        #     name: screenshot
+        #     path: screenshot.png
+
+
+# $(hostname -I | awk '{print $1}')
