@@ -7,20 +7,63 @@ jobs:
     build:
         runs-on: ubuntu-latest
         services:
+          postgres:
+            image: postgres:15
+            ports:
+              - 5432:5432
+            env:
+              POSTGRES_USER: testuser
+              POSTGRES_PASSWORD: testpassword
+              POSTGRES_DB: testdb
+              options: >-
+                --health-cmd "pg_isready -U testuser"
+                --health-interval 10s
+                --health-timeout 5s
+                  --health-retries 5
+
+          redis:
+            image: redis:7
+            ports:
+              - 6379:6379
+            options: >-
+              --health-cmd "redis-cli ping"
+              --health-interval 10s
+              --health-timeout 5s
+              --health-retries 5
+
           selenium:
             image: selenium/standalone-firefox
             options: --shm-size 2gb
             ports:
               - 4444:4444
               - 7900:7900
-    
+        
         steps:
         - uses: actions/checkout@v4
+
+        - name: Wait for PostgreSQL and Redis to be ready
+          run: |
+            until pg_isready -h localhost -p 5432 -U testuser; do
+              echo "Waiting for PostgreSQL..."
+              sleep 2
+            done
+
+            sudo apt-get install redis-tools -y
+            until redis-cli -h localhost ping | grep -q PONG; do
+              echo "Waiting for Redis..."
+              sleep 2
+            done
+
+        - name: Create additional database (audit_trail)
+          run: |
+              PGPASSWORD=testpassword psql -h localhost -U testuser -d postgres -c "CREATE DATABASE audit_trail;"        
         
         - name: Obter IP privado da máquina
           run: |
            HOST_IP=$(hostname -I | awk '{print $1}')
            echo "O IP privado do runner é: $HOST_IP"
+           echo "O IP privado do runner é 2 method: ${{ steps.get_ip.outputs.ip }}"
+           echo "All $(hostname -I)"
 
         - name: Aguardar o Selenium estar pronto
           run: |
