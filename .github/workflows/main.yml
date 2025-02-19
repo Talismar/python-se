@@ -131,10 +131,12 @@ jobs:
 
         - name: Run tests
           env:
-            FRONT_URL: http://$HOST_IP:3000
+            HOST_IP: ${{ env.HOST_IP }} 
           run: |
+            FRONT_URL="http://$HOST_IP:3000"
+            echo "FRONT_URL: $FRONT_URL"
             cd backend
-            python main.py
+            FRONT_URL=$FRONT_URL python main.py
 
         # - name: Install and run
         #   run: |
