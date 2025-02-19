@@ -12,8 +12,8 @@ jobs:
         
         - name: Obter IP privado da máquina
           run: |
-           IP_PRIVADO=$(hostname -I)
-           echo "O IP privado do runner é: $IP_PRIVADO"
+           HOST_IP=$(hostname -I | awk '{print $1}')
+           echo "O IP privado do runner é: $HOST_IP"
         # - name: Install and run
         #   run: |
         #     docker compose up --abort-on-container-exit
