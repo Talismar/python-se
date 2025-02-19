@@ -24,13 +24,19 @@ try:
    elem.clear()
    elem.send_keys("thalocanadministrator@tavos.com")
 
-   driver.save_screenshot("screenshot.png")
+   os.makedirs("screenshots", exist_ok=True)
+   
    elem = driver.find_element(By.NAME, "password")
    elem.clear()
    elem.send_keys("Pass@2023")
+
+   driver.save_screenshot("screenshots/screenshot_login.png")
+
    elem.send_keys(Keys.RETURN)
 
    WebDriverWait(driver, 10).until(lambda d: d.title == "Dashboard")
+
+   driver.save_screenshot("screenshots/screenshot_dashboard.png")
    assert "Dashboard" == driver.title
 except BaseException as e:
    print(e)
