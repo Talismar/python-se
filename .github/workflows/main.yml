@@ -133,6 +133,7 @@ jobs:
           env:
             FRONT_URL: http://$HOST_IP:3000
           run: |
+            cd backend
             python main.py
 
         # - name: Install and run
