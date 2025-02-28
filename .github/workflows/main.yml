@@ -88,20 +88,22 @@ jobs:
             cd frontend
             npm install
   
-        - name: Install Frontend Dependencies
+        - name: Run Frontend
           env:
             HOST_IP: ${{ env.HOST_IP }}
           run: |
-            NEXT_PUBLIC_URL_API=http://$HOST_IP:8000
-            NEXT_PUBLIC_WS_BASE_URL=ws://$HOST_IP:8000
-            NEXT_IMAGES_DOMAINS=$HOST_IP
-            CSP_CONNECT_SRC_URLS=http://$HOST_IP:8000 ws://$HOST_IP:8000
+            export NEXT_PUBLIC_URL_API="http://$HOST_IP:8000"
+            export NEXT_PUBLIC_WS_BASE_URL="ws://$HOST_IP:8000"
+            export NEXT_IMAGES_DOMAINS="$HOST_IP"
+            export CSP_CONNECT_SRC_URLS="http://$HOST_IP:8000 ws://$HOST_IP:8000"
+
             echo "NEXT_PUBLIC_URL_API: $NEXT_PUBLIC_URL_API"
             echo "NEXT_PUBLIC_WS_BASE_URL: $NEXT_PUBLIC_WS_BASE_URL"
             echo "NEXT_IMAGES_DOMAINS: $NEXT_IMAGES_DOMAINS"
             echo "CSP_CONNECT_SRC_URLS: $CSP_CONNECT_SRC_URLS"
+
             cd frontend
-            NEXT_PUBLIC_URL_API=$NEXT_PUBLIC_URL_API NEXT_PUBLIC_WS_BASE_URL=$NEXT_PUBLIC_WS_BASE_URL NEXT_IMAGES_DOMAINS=$NEXT_IMAGES_DOMAINS CSP_CONNECT_SRC_URLS=$CSP_CONNECT_SRC_URLS npm run dev &
+            npm run dev &
     
         - name: Checkout Backend Code Repository
           uses: actions/checkout@v4
