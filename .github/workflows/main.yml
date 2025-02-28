@@ -152,11 +152,11 @@ jobs:
         #   run: |
         #     docker compose up --abort-on-container-exit
 
-        # - name: Upload screenshot
-        #   uses: actions/upload-artifact@v4
-        #   with:
-        #     name: screenshots
-        #     path: backend/screenshots
+        - name: Upload reports
+          uses: actions/upload-artifact@v4
+          with:
+            name: reports
+            path: backend/reports
 
 
 # $(hostname -I | awk '{print $1}')
