@@ -90,13 +90,14 @@ jobs:
   
         - name: Install Frontend Dependencies
           env:
-            NEXT_PUBLIC_URL_API: https://back-tavos-dev.thalocan.com
-            NEXT_PUBLIC_WS_BASE_URL: wss://back-tavos-dev.thalocan.com
-            NEXT_IMAGES_DOMAINS: back-tavos-dev.thalocan.com
-            CSP_CONNECT_SRC_URLS: https://back-tavos-dev.thalocan.com wss://back-tavos-dev.thalocan.com
+            HOST_IP: ${{ env.HOST_IP }}
           run: |
+            NEXT_PUBLIC_URL_API=http://$HOST_IP:8000
+            NEXT_PUBLIC_WS_BASE_URL=ws://$HOST_IP:8000
+            NEXT_IMAGES_DOMAINS=$HOST_IP
+            CSP_CONNECT_SRC_URLS=http://$HOST_IP:8000 ws://$HOST_IP:8000
             cd frontend
-            npm run dev &
+            NEXT_PUBLIC_URL_API=$NEXT_PUBLIC_URL_API NEXT_PUBLIC_WS_BASE_URL=$NEXT_PUBLIC_WS_BASE_URL NEXT_IMAGES_DOMAINS=$NEXT_IMAGES_DOMAINS CSP_CONNECT_SRC_URLS=$CSP_CONNECT_SRC_URLS npm run dev &
     
         - name: Checkout Backend Code Repository
           uses: actions/checkout@v4
