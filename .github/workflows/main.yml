@@ -125,8 +125,8 @@ jobs:
             AUDIT_TRAIL_DATABASE_URL: postgres://testuser:testpassword@localhost:5432/audit_trail
             WEBDRIVER: "REMOTE"
           run: |
-            DOMAIN_BACK_URL="http://$HOST_IP:8000"
-            FRONT_URL="http://$HOST_IP:3000"
+            export DOMAIN_BACK_URL="http://$HOST_IP:8000"
+            export FRONT_URL="http://$HOST_IP:3000"
             cd backend
             python manage.py test tests.e2e.test_system
 
