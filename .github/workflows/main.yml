@@ -75,6 +75,7 @@ jobs:
           uses: actions/checkout@v4
           with:
             path: 'frontend'
+            ref: 'develop'
             repository: 'Thalocan-TRI/tavos-front'
             token: ${{ secrets.SECRET }}
 
