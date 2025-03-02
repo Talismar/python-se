@@ -132,6 +132,7 @@ jobs:
             HOST_IP: ${{ env.HOST_IP }}
             AUDIT_TRAIL_DATABASE_URL: postgres://testuser:testpassword@localhost:5432/audit_trail
             WEBDRIVER: "REMOTE"
+            SELENIUM_TEST: "True"
           run: |
             DOMAIN_BACK_URL="http://$HOST_IP:8000"
             FRONT_URL="http://$HOST_IP:3000"
