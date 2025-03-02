@@ -15,11 +15,11 @@ jobs:
               POSTGRES_USER: testuser
               POSTGRES_PASSWORD: testpassword
               POSTGRES_DB: testdb
-              options: >-
-                --health-cmd "pg_isready -U testuser"
-                --health-interval 10s
-                --health-timeout 5s
-                  --health-retries 5
+            options: >-
+              --health-cmd "pg_isready -U testuser"
+              --health-interval 10s
+              --health-timeout 5s
+              --health-retries 10
 
           redis:
             image: redis:7
@@ -29,7 +29,7 @@ jobs:
               --health-cmd "redis-cli ping"
               --health-interval 10s
               --health-timeout 5s
-              --health-retries 5
+              --health-retries 10
 
           selenium:
             image: selenium/standalone-firefox
@@ -37,39 +37,77 @@ jobs:
             ports:
               - 4444:4444
               - 7900:7900
-        
+
         steps:
-        - name: Wait for PostgreSQL and Redis to be ready
+        - name: Check PostgreSQL readiness
           run: |
-            until pg_isready -h localhost -p 5432 -U testuser; do
-              echo "Waiting for PostgreSQL..."
-              sleep 2
+            echo "Verifying PostgreSQL readiness..."
+            MAX_RETRIES=30
+            for i in $(seq 1 $MAX_RETRIES); do
+              if pg_isready -h localhost -p 5432 -U testuser; then
+                echo "PostgreSQL is ready."
+                break
+              else
+                echo "PostgreSQL not ready yet. Attempt $i/$MAX_RETRIES."
+                if [ $i -eq $MAX_RETRIES ]; then
+                  echo "PostgreSQL failed to become ready within the expected time."
+                  exit 1
+                fi
+                sleep 2
+              fi
             done
 
-            sudo apt-get install redis-tools -y
-            until redis-cli -h localhost ping | grep -q PONG; do
-              echo "Waiting for Redis..."
-              sleep 2
+        - name: Check Redis readiness
+          run: |
+            echo "Installing Redis CLI..."
+            sudo apt-get update && sudo apt-get install -y redis-tools
+
+            echo "Verifying Redis readiness..."
+            MAX_RETRIES=30
+            for i in $(seq 1 $MAX_RETRIES); do
+              if redis-cli -h localhost ping | grep -q PONG; then
+                echo "Redis is ready."
+                break
+              else
+                echo "Redis not ready yet. Attempt $i/$MAX_RETRIES."
+                if [ $i -eq $MAX_RETRIES ]; then
+                  echo "Redis failed to become ready within the expected time."
+                  exit 1
+                fi
+                sleep 2
+              fi
             done
 
         - name: Create additional database (audit_trail)
           run: |
-              PGPASSWORD=testpassword psql -h localhost -U testuser -d postgres -c "CREATE DATABASE audit_trail;"        
+            echo "Creating the 'audit_trail' database..."
+            PGPASSWORD=testpassword psql -h localhost -U testuser -d postgres -c "CREATE DATABASE audit_trail;"
+            echo "'audit_trail' database created successfully."
 
-        - name: Aguardar o Selenium estar pronto
+        - name: Wait for Selenium to be ready
           run: |
-            until curl -s http://localhost:4444/wd/hub/status | grep -q "ready"; do
-              echo "Aguardando o Selenium estar pronto..."
-              sleep 5
+            echo "Waiting for Selenium to be ready..."
+            MAX_RETRIES=30
+            for i in $(seq 1 $MAX_RETRIES); do
+              if curl -s http://localhost:4444/wd/hub/status | grep -q "ready"; then
+                echo "Selenium is ready."
+                break
+              else
+                echo "Selenium not ready yet. Attempt $i/$MAX_RETRIES."
+                if [ $i -eq $MAX_RETRIES ]; then
+                  echo "Selenium failed to become ready within the expected time."
+                  exit 1
+                fi
+                sleep 5
+              fi
             done
-            echo "Selenium está pronto!"
-        
-        - name: Obter o IP privado
+
+        - name: Get private IP
           id: get_ip
           run: |
-            IP_PRIVADO=$(hostname -I | awk '{print $1}')
-            echo "IP privado: $IP_PRIVADO"
-            echo "HOST_IP=$IP_PRIVADO" >> $GITHUB_ENV
+            PRIVATE_IP=$(hostname -I | awk '{print $1}')
+            echo "Private IP resolved: $PRIVATE_IP"
+            echo "HOST_IP=$PRIVATE_IP" >> $GITHUB_ENV
 
         - name: Checkout Frontend Code Repository
           uses: actions/checkout@v4
@@ -87,12 +125,15 @@ jobs:
         - name: Install Frontend Dependencies
           run: |
             cd frontend
+            echo "Installing frontend dependencies..."
             npm install
-  
-        - name: Run Frontend
+            echo "Frontend dependencies installed."
+
+        - name: Start Frontend
           env:
             HOST_IP: ${{ env.HOST_IP }}
           run: |
+            echo "Starting frontend with environment variables..."
             export NEXT_PUBLIC_URL_API="http://$HOST_IP:8000"
             export NEXT_PUBLIC_WS_BASE_URL="ws://$HOST_IP:8000"
             export NEXT_IMAGES_DOMAINS="$HOST_IP"
@@ -105,7 +146,8 @@ jobs:
 
             cd frontend
             npm run dev &
-    
+            echo "Frontend started."
+
         - name: Checkout Backend Code Repository
           uses: actions/checkout@v4
           with:
@@ -122,10 +164,12 @@ jobs:
         - name: Install Backend Dependencies
           run: |
             cd backend
+            echo "Installing backend dependencies..."
             python -m pip install --upgrade pip
             pip install -r requirements/local.txt
-  
-        - name: Run tests
+            echo "Backend dependencies installed."
+
+        - name: Run Tests
           env:
             DATABASE_URL: postgres://testuser:testpassword@localhost:5432/testdb
             REDIS_URL: redis://localhost:6379/0
@@ -134,39 +178,26 @@ jobs:
             WEBDRIVER: "REMOTE"
             SELENIUM_TEST: "True"
           run: |
+            echo "Running tests..."
             DOMAIN_BACK_URL="http://$HOST_IP:8000"
             FRONT_URL="http://$HOST_IP:3000"
             echo "FRONT_URL: $FRONT_URL"
             echo "DOMAIN_BACK_URL: $DOMAIN_BACK_URL"
             cd backend
             FRONT_URL=$FRONT_URL DOMAIN_BACK_URL=$DOMAIN_BACK_URL python manage.py test tests.e2e.test_system
+            echo "Tests finished."
           continue-on-error: true
 
-        # - name: Run tests
-        #   env:
-        #     HOST_IP: ${{ env.HOST_IP }} 
-        #   run: |
-        #     FRONT_URL="http://$HOST_IP:3000"
-        #     echo "FRONT_URL: $FRONT_URL"
-        #     cd backend
-        #     FRONT_URL=$FRONT_URL python main.py
-
-        # - name: Install and run
-        #   run: |
-        #     docker compose up --abort-on-container-exit
-
-        - name: Upload reports
+        - name: Upload Reports
           if: always()
           uses: actions/upload-artifact@v4
           with:
             name: reports
             path: backend/reports
 
-        - name: Fail the job if tests failed
-          if: failure()  # Só executa se o passo anterior falhou
+        - name: Check Test Results
+          if: failure()
           run: |
-            echo "Tests failed. See the report for details."
+            echo "Tests failed. Check the uploaded reports for details."
             exit 1
-
-
-# $(hostname -I | awk '{print $1}')
+        
