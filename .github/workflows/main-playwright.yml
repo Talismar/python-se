@@ -31,13 +31,6 @@ jobs:
               --health-timeout 5s
               --health-retries 10
 
-          selenium:
-            image: selenium/standalone-firefox
-            options: --shm-size 2gb
-            ports:
-              - 4444:4444
-              - 7900:7900
-
         steps:
         - name: Check PostgreSQL readiness
           run: |
@@ -84,24 +77,6 @@ jobs:
             PGPASSWORD=testpassword psql -h localhost -U testuser -d postgres -c "CREATE DATABASE audit_trail;"
             echo "'audit_trail' database created successfully."
 
-        - name: Wait for Selenium to be ready
-          run: |
-            echo "Waiting for Selenium to be ready..."
-            MAX_RETRIES=30
-            for i in $(seq 1 $MAX_RETRIES); do
-              if curl -s http://localhost:4444/wd/hub/status | grep -q "ready"; then
-                echo "Selenium is ready."
-                break
-              else
-                echo "Selenium not ready yet. Attempt $i/$MAX_RETRIES."
-                if [ $i -eq $MAX_RETRIES ]; then
-                  echo "Selenium failed to become ready within the expected time."
-                  exit 1
-                fi
-                sleep 5
-              fi
-            done
-
         - name: Checkout Frontend Code Repository
           uses: actions/checkout@v4
           with:
@@ -123,12 +98,13 @@ jobs:
             echo "Frontend dependencies installed."
 
         - name: Start Frontend
+          env:
+            NEXT_PUBLIC_URL_API: "http://localhost:8000"
+            NEXT_PUBLIC_WS_BASE_URL: "ws://localhost:8000"
+            NEXT_IMAGES_DOMAINS: "localhost"
+            CSP_CONNECT_SRC_URLS: "http://localhost:8000 ws://localhost:8000"
           run: |
-            echo "Starting frontend with environment variables..."
-            export NEXT_PUBLIC_URL_API="http://localhost:8000"
-            export NEXT_PUBLIC_WS_BASE_URL="ws://localhost:8000"
-            export NEXT_IMAGES_DOMAINS="localhost:8000"
-            export CSP_CONNECT_SRC_URLS="http://localhost:8000 ws://localhost:8000"
+            echo "Starting frontend with environment variables..."            
 
             echo "NEXT_PUBLIC_URL_API: $NEXT_PUBLIC_URL_API"
             echo "NEXT_PUBLIC_WS_BASE_URL: $NEXT_PUBLIC_WS_BASE_URL"
@@ -136,7 +112,7 @@ jobs:
             echo "CSP_CONNECT_SRC_URLS: $CSP_CONNECT_SRC_URLS"
 
             cd frontend
-            npm run dev &
+            npm run build && npm run start & 
             echo "Frontend started."
 
         - name: Checkout Backend Code Repository
@@ -171,14 +147,15 @@ jobs:
             AUDIT_TRAIL_DATABASE_URL: postgres://testuser:testpassword@localhost:5432/audit_trail
             E2E_TEST: "True" 
             TEST_E2E_HEADLESS: "True"
+            DOMAIN_BACK_URL: "http://localhost:8000"
+            FRONT_URL: "http://localhost:3000"
           run: |
             echo "Running tests..."
-            DOMAIN_BACK_URL="http://localhost:8000"
-            FRONT_URL="http://localhost:3000"
             echo "FRONT_URL: $FRONT_URL"
             echo "DOMAIN_BACK_URL: $DOMAIN_BACK_URL"
+            
             cd backend
-            FRONT_URL=$FRONT_URL DOMAIN_BACK_URL=$DOMAIN_BACK_URL python manage.py test tests.e2e.test_playwright
+            python manage.py test tests.e2e.test_playwright
             echo "Tests finished."
           continue-on-error: true
 
