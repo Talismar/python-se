@@ -151,6 +151,7 @@ jobs:
             TEST_E2E_HEADLESS: "True"
             DOMAIN_BACK_URL: "http://localhost:8000"
             FRONT_URL: "http://localhost:3000"
+            DJANGO_ALLOW_ASYNC_UNSAFE: 1
           run: |
             echo "Running tests..."
             echo "FRONT_URL: $FRONT_URL"
