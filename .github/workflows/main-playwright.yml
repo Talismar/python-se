@@ -136,7 +136,6 @@ jobs:
             echo "Installing backend dependencies..."
             python -m pip install --upgrade pip
             pip install -r requirements/local.txt
-            pip install -r requirements/test.txt
             echo "Backend dependencies installed."
 
         - name: Ensure browsers are installed
