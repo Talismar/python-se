@@ -1,176 +1,175 @@
 name: Playwright Test
 
 on:
-    workflow_dispatch:
+  workflow_dispatch:
 
 jobs:
-    build:
-        runs-on: ubuntu-latest
-        services:
-          postgres:
-            image: postgres:15
-            ports:
-              - 5432:5432
-            env:
-              POSTGRES_USER: testuser
-              POSTGRES_PASSWORD: testpassword
-              POSTGRES_DB: testdb
-            options: >-
-              --health-cmd "pg_isready -U testuser"
-              --health-interval 10s
-              --health-timeout 5s
-              --health-retries 10
+  build:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        ports:
+          - 5432:5432
+        env:
+          POSTGRES_USER: testuser
+          POSTGRES_PASSWORD: testpassword
+          POSTGRES_DB: testdb
+        options: >-
+          --health-cmd "pg_isready -U testuser"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
 
-          redis:
-            image: redis:7
-            ports:
-              - 6379:6379
-            options: >-
-              --health-cmd "redis-cli ping"
-              --health-interval 10s
-              --health-timeout 5s
-              --health-retries 10
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
 
-        steps:
-        - name: Check PostgreSQL readiness
-          run: |
-            echo "Verifying PostgreSQL readiness..."
-            MAX_RETRIES=30
-            for i in $(seq 1 $MAX_RETRIES); do
-              if pg_isready -h localhost -p 5432 -U testuser; then
-                echo "PostgreSQL is ready."
-                break
-              else
-                echo "PostgreSQL not ready yet. Attempt $i/$MAX_RETRIES."
-                if [ $i -eq $MAX_RETRIES ]; then
-                  echo "PostgreSQL failed to become ready within the expected time."
-                  exit 1
-                fi
-                sleep 2
-              fi
-            done
+    steps:
+    - name: Check PostgreSQL readiness
+      run: |
+        echo "Verifying PostgreSQL readiness..."
+        MAX_RETRIES=30
+        for i in $(seq 1 $MAX_RETRIES); do
+          if pg_isready -h localhost -p 5432 -U testuser; then
+            echo "PostgreSQL is ready."
+            break
+          else
+            echo "PostgreSQL not ready yet. Attempt $i/$MAX_RETRIES."
+            if [ $i -eq $MAX_RETRIES ]; then
+              echo "PostgreSQL failed to become ready within the expected time."
+              exit 1
+            fi
+            sleep 2
+          fi
+        done
 
-        - name: Check Redis readiness
-          run: |
-            echo "Installing Redis CLI..."
-            sudo apt-get update && sudo apt-get install -y redis-tools
+    - name: Check Redis readiness
+      run: |
+        echo "Installing Redis CLI..."
+        sudo apt-get update && sudo apt-get install -y redis-tools
 
-            echo "Verifying Redis readiness..."
-            MAX_RETRIES=30
-            for i in $(seq 1 $MAX_RETRIES); do
-              if redis-cli -h localhost ping | grep -q PONG; then
-                echo "Redis is ready."
-                break
-              else
-                echo "Redis not ready yet. Attempt $i/$MAX_RETRIES."
-                if [ $i -eq $MAX_RETRIES ]; then
-                  echo "Redis failed to become ready within the expected time."
-                  exit 1
-                fi
-                sleep 2
-              fi
-            done
+        echo "Verifying Redis readiness..."
+        MAX_RETRIES=30
+        for i in $(seq 1 $MAX_RETRIES); do
+          if redis-cli -h localhost ping | grep -q PONG; then
+            echo "Redis is ready."
+            break
+          else
+            echo "Redis not ready yet. Attempt $i/$MAX_RETRIES."
+            if [ $i -eq $MAX_RETRIES ]; then
+              echo "Redis failed to become ready within the expected time."
+              exit 1
+            fi
+            sleep 2
+          fi
+        done
 
-        - name: Create additional database (audit_trail)
-          run: |
-            echo "Creating the 'audit_trail' database..."
-            PGPASSWORD=testpassword psql -h localhost -U testuser -d postgres -c "CREATE DATABASE audit_trail;"
-            echo "'audit_trail' database created successfully."
+    - name: Create additional database (audit_trail)
+      run: |
+        echo "Creating the 'audit_trail' database..."
+        PGPASSWORD=testpassword psql -h localhost -U testuser -d postgres -c "CREATE DATABASE audit_trail;"
+        echo "'audit_trail' database created successfully."
 
-        - name: Checkout Frontend Code Repository
-          uses: actions/checkout@v4
-          with:
-            path: 'frontend'
-            ref: 'develop'
-            repository: 'Thalocan-TRI/tavos-front'
-            token: ${{ secrets.SECRET }}
+    - name: Checkout Frontend Code Repository
+      uses: actions/checkout@v4
+      with:
+        path: 'frontend'
+        ref: 'develop'
+        repository: 'Thalocan-TRI/tavos-front'
+        token: ${{ secrets.SECRET }}
 
-        - name: Set up Node.js
-          uses: actions/setup-node@v3
-          with:
-            node-version: '18.x'
+    - name: Set up Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18.x'
 
-        - name: Install Frontend Dependencies
-          run: |
-            cd frontend
-            echo "Installing frontend dependencies..."
-            npm install
-            echo "Frontend dependencies installed."
+    - name: Install Frontend Dependencies
+      run: |
+        cd frontend
+        echo "Installing frontend dependencies..."
+        npm install
+        echo "Frontend dependencies installed."
 
-        - name: Start Frontend
-          env:
-            NEXT_PUBLIC_URL_API: "http://localhost:8000"
-            NEXT_PUBLIC_WS_BASE_URL: "ws://localhost:8000"
-            NEXT_IMAGES_DOMAINS: "localhost"
-            CSP_CONNECT_SRC_URLS: "http://localhost:8000 ws://localhost:8000"
-          run: |
-            echo "Starting frontend with environment variables..."            
+    - name: Start Frontend
+      env:
+        NEXT_PUBLIC_URL_API: "http://localhost:8000"
+        NEXT_PUBLIC_WS_BASE_URL: "ws://localhost:8000"
+        NEXT_IMAGES_DOMAINS: "localhost"
+        CSP_CONNECT_SRC_URLS: "http://localhost:8000 ws://localhost:8000"
+      run: |
+        echo "Starting frontend with environment variables..."            
 
-            echo "NEXT_PUBLIC_URL_API: $NEXT_PUBLIC_URL_API"
-            echo "NEXT_PUBLIC_WS_BASE_URL: $NEXT_PUBLIC_WS_BASE_URL"
-            echo "NEXT_IMAGES_DOMAINS: $NEXT_IMAGES_DOMAINS"
-            echo "CSP_CONNECT_SRC_URLS: $CSP_CONNECT_SRC_URLS"
+        echo "NEXT_PUBLIC_URL_API: $NEXT_PUBLIC_URL_API"
+        echo "NEXT_PUBLIC_WS_BASE_URL: $NEXT_PUBLIC_WS_BASE_URL"
+        echo "NEXT_IMAGES_DOMAINS: $NEXT_IMAGES_DOMAINS"
+        echo "CSP_CONNECT_SRC_URLS: $CSP_CONNECT_SRC_URLS"
 
-            cd frontend
-            npm run build 
-            
-            npm run start & 
-            echo "Frontend started."
-
-        - name: Checkout Backend Code Repository
-          uses: actions/checkout@v4
-          with:
-            path: 'backend'
-            ref: 'feature/setup-selenium-test'
-            repository: 'Thalocan-TRI/tavos-back'
-            token: ${{ secrets.SECRET }}
-
-        - name: Set up Python
-          uses: actions/setup-python@v4
-          with:
-            python-version: '3.10.12'
-
-        - name: Install Backend Dependencies
-          run: |
-            cd backend
-            echo "Installing backend dependencies..."
-            python -m pip install --upgrade pip
-            pip install -r requirements/local.txt
-            echo "Backend dependencies installed."
-
-        - name: Ensure browsers are installed
-          run: python -m playwright install --with-deps
-
-        - name: Run Tests
-          env:
-            DATABASE_URL: postgres://testuser:testpassword@localhost:5432/testdb
-            REDIS_URL: redis://localhost:6379/0
-            AUDIT_TRAIL_DATABASE_URL: postgres://testuser:testpassword@localhost:5432/audit_trail
-            E2E_TEST: "True" 
-            TEST_E2E_HEADLESS: "True"
-            DOMAIN_BACK_URL: "http://localhost:8000"
-            FRONT_URL: "http://localhost:3000"
-            DJANGO_ALLOW_ASYNC_UNSAFE: 1
-          run: |
-            echo "Running tests..."
-            echo "FRONT_URL: $FRONT_URL"
-            echo "DOMAIN_BACK_URL: $DOMAIN_BACK_URL"
-            
-            cd backend
-            python manage.py test tests.e2e.test_playwright
-            echo "Tests finished."
-          continue-on-error: true
-
-        - name: Upload Reports
-          if: always()
-          uses: actions/upload-artifact@v4
-          with:
-            name: reports
-            path: backend/reports
-
-        - name: Check Test Results
-          if: failure()
-          run: |
-            echo "Tests failed. Check the uploaded reports for details."
-            exit 1
+        cd frontend
+        npm run build 
         
+        npm run start & 
+        echo "Frontend started."
+
+    - name: Checkout Backend Code Repository
+      uses: actions/checkout@v4
+      with:
+        path: 'backend'
+        ref: 'feature/setup-selenium-test'
+        repository: 'Thalocan-TRI/tavos-back'
+        token: ${{ secrets.SECRET }}
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10.12'
+
+    - name: Install Backend Dependencies
+      run: |
+        cd backend
+        echo "Installing backend dependencies..."
+        python -m pip install --upgrade pip
+        pip install -r requirements/local.txt
+        echo "Backend dependencies installed."
+
+    - name: Ensure browsers are installed
+      run: python -m playwright install --with-deps
+
+    - name: Run Tests
+      env:
+        DATABASE_URL: postgres://testuser:testpassword@localhost:5432/testdb
+        REDIS_URL: redis://localhost:6379/0
+        AUDIT_TRAIL_DATABASE_URL: postgres://testuser:testpassword@localhost:5432/audit_trail
+        E2E_TEST: "True" 
+        TEST_E2E_HEADLESS: "True"
+        DOMAIN_BACK_URL: "http://localhost:8000"
+        FRONT_URL: "http://localhost:3000"
+      run: |
+        echo "Running tests..."
+        echo "FRONT_URL: $FRONT_URL"
+        echo "DOMAIN_BACK_URL: $DOMAIN_BACK_URL"
+        
+        cd backend
+        python manage.py test tests.e2e.test_playwright
+        echo "Tests finished."
+      continue-on-error: true
+
+    - name: Upload Reports
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: reports
+        path: backend/reports
+
+    - name: Check Test Results
+      if: failure()
+      run: |
+        echo "Tests failed. Check the uploaded reports for details."
+        exit 1
+    
