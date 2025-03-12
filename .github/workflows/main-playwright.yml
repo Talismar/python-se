@@ -1,4 +1,4 @@
-name: Selenium Test Playwriter
+name: Playwright Test
 
 on:
     workflow_dispatch:
