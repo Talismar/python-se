@@ -77,6 +77,13 @@ jobs:
         PGPASSWORD=testpassword psql -h localhost -U testuser -d postgres -c "CREATE DATABASE audit_trail;"
         echo "'audit_trail' database created successfully."
 
+    - name: Get private IP
+      id: get_ip
+      run: |
+        PRIVATE_IP=$(hostname -I | awk '{print $1}')
+        echo "Private IP resolved: $PRIVATE_IP"
+        echo "HOST_IP=$PRIVATE_IP" >> $GITHUB_ENV
+
     - name: Checkout Frontend Code Repository
       uses: actions/checkout@v4
       with:
@@ -99,12 +106,13 @@ jobs:
 
     - name: Start Frontend
       env:
-        NEXT_PUBLIC_URL_API: "http://localhost:8000"
-        NEXT_PUBLIC_WS_BASE_URL: "ws://localhost:8000"
-        NEXT_IMAGES_DOMAINS: "localhost"
-        CSP_CONNECT_SRC_URLS: "http://localhost:8000 ws://localhost:8000"
+        HOST_IP: ${{ env.HOST_IP }}
       run: |
-        echo "Starting frontend with environment variables..."            
+        echo "Starting frontend with environment variables..."
+        export NEXT_PUBLIC_URL_API="http://$HOST_IP:8000"
+        export NEXT_PUBLIC_WS_BASE_URL="ws://$HOST_IP:8000"
+        export NEXT_IMAGES_DOMAINS="$HOST_IP"
+        export CSP_CONNECT_SRC_URLS="http://$HOST_IP:8000 ws://$HOST_IP:8000"
 
         echo "NEXT_PUBLIC_URL_API: $NEXT_PUBLIC_URL_API"
         echo "NEXT_PUBLIC_WS_BASE_URL: $NEXT_PUBLIC_WS_BASE_URL"
@@ -112,8 +120,7 @@ jobs:
         echo "CSP_CONNECT_SRC_URLS: $CSP_CONNECT_SRC_URLS"
 
         cd frontend
-        npm run dev & 
-
+        npm run dev &
         echo "Frontend started."
 
     - name: Checkout Backend Code Repository
@@ -144,6 +151,7 @@ jobs:
       env:
         DATABASE_URL: postgres://testuser:testpassword@localhost:5432/testdb
         REDIS_URL: redis://localhost:6379/0
+        HOST_IP: ${{ env.HOST_IP }}
         AUDIT_TRAIL_DATABASE_URL: postgres://testuser:testpassword@localhost:5432/audit_trail
         E2E_TEST: "True" 
         TEST_E2E_HEADLESS: "True"
@@ -151,11 +159,13 @@ jobs:
         FRONT_URL: "http://localhost:3000"
       run: |
         echo "Running tests..."
+        DOMAIN_BACK_URL="http://$HOST_IP:8000"
+        FRONT_URL="http://$HOST_IP:3000"
         echo "FRONT_URL: $FRONT_URL"
         echo "DOMAIN_BACK_URL: $DOMAIN_BACK_URL"
         
         cd backend
-        python manage.py test tests.e2e.test_playwright
+        FRONT_URL=$FRONT_URL DOMAIN_BACK_URL=$DOMAIN_BACK_URL python manage.py test tests.e2e.test_playwright
         echo "Tests finished."
       continue-on-error: true
 
