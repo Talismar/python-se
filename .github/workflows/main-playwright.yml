@@ -112,9 +112,8 @@ jobs:
         echo "CSP_CONNECT_SRC_URLS: $CSP_CONNECT_SRC_URLS"
 
         cd frontend
-        npm run build 
-        
-        npm run start & 
+        npm run dev & 
+
         echo "Frontend started."
 
     - name: Checkout Backend Code Repository
