@@ -145,7 +145,7 @@ jobs:
         echo "Backend dependencies installed."
 
     - name: Ensure browsers are installed
-      run: python -m playwright install --with-deps
+      run: python -m playwright install --with-deps chromium
 
     - name: Run Tests
       env:
